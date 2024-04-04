@@ -1,0 +1,27 @@
+name: Update Authorized Keys on Servers
+
+on:
+  workflow_dispatch:
+  # push:
+  #   branches:
+  #     - main
+
+
+jobs:
+  exampleserver:
+    runs-on: Linux
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Add root key
+        run: |
+          echo "{{ vars.KEY_PUB }}" >> ${{ github.job }}
+      - name: Upload to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: server_ip
+          port: server_port # default is 22
+          username: user
+          key: ${{ secrets.KEY_PRIVATE }}
+          source: "{{ github.job }}"
+          target: ~/.ssh/authorized_keys
