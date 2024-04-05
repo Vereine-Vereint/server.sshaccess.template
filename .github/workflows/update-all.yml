@@ -1,0 +1,14 @@
+name: Update all keys
+
+on:
+  # push:
+  #   branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  exampleserver:
+    uses: ./.github/workflows/update-keys.yml
+    with:
+      HOST: exampleserver
+    secrets:
+      KEY_PRIVATE: ${{ secrets.KEY_PRIVATE }}

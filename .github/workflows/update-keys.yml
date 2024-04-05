@@ -1,27 +1,51 @@
 name: Update Authorized Keys on Servers
 
 on:
-  workflow_dispatch:
-  # push:
-  #   branches:
-  #     - main
-
+  workflow_call:
+    inputs:
+      HOST:
+        required: true
+        type: string
+      RESTART_SSH:
+        required: false
+        type: boolean
+        default: true
+    secrets:
+      KEY_PRIVATE:
+        required: true
 
 jobs:
-  exampleserver:
-    runs-on: Linux
+  update-keys:
+    env:
+      HOST: ${{ inputs.HOST }}
+      FILE: authorized_keys.${{ inputs.HOST }}
+
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Add root key
+      - name: generate authorized_keys
         run: |
-          echo "{{ vars.KEY_PUB }}" >> ${{ github.job }}
-      - name: Upload to server
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: server_ip
-          port: server_port # default is 22
-          username: user
-          key: ${{ secrets.KEY_PRIVATE }}
-          source: "{{ github.job }}"
-          target: ~/.ssh/authorized_keys
+          echo "${{ vars.KEY_PUB }}" >> ${{ env.FILE }}
+      - name: prepare ssh
+        run: |
+          mkdir -p ~/.ssh
+          echo "IdentityFile ~/.ssh/private_key" > ~/.ssh/config
+          cat config >> ~/.ssh/config
+          cp known_hosts ~/.ssh/known_hosts
+          echo "${{ secrets.KEY_PRIVATE }}" > ~/.ssh/private_key
+          sudo chmod -R 600 ~/.ssh
+          sudo chmod 700 ~/.ssh
+      - name: Copy authorized_keys to server
+        run: |
+          scp  ${{ env.FILE }} ${{ env.HOST }}:.ssh/authorized_keys
+      - name: Adjust Rights
+        run: |
+          ssh ${{ env.HOST }} 'chmod 600 .ssh/authorized_keys'
+      - name: Restart SSH
+        if: inputs.RESTART_SSH
+        run: |
+          ssh ${{ env.HOST }} 'sudo systemctl restart sshd'
+      - name: Remove .ssh config
+        if: always()
+        run: rm -rf ~/.ssh || sudo rm -rf ~/.ssh

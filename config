@@ -1,0 +1,4 @@
+Host exampleserver
+    HostName <ip or dnsname>
+    User <username>
+    Port <port> # default is 22

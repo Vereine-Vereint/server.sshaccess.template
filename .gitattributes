@@ -1,0 +1,2 @@
+# gitattributes file: all files with LF
+* text=auto eol=lf
