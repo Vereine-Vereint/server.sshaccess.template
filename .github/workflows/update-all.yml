@@ -10,5 +10,7 @@ jobs:
     uses: ./.github/workflows/update-keys.yml
     with:
       HOST: exampleserver
+      RESTART_SSH: true # restart ssh service (>= ubuntu 24)
+      RESTART_SSHD: true # restart sshd service (<= ubuntu 24)
     secrets:
       KEY_PRIVATE: ${{ secrets.KEY_PRIVATE }}

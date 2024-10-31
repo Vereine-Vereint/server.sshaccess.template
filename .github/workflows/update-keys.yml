@@ -9,7 +9,15 @@ on:
       RESTART_SSH:
         required: false
         type: boolean
-        default: true
+        default: false
+      RESTART_SSHD:
+        required: false
+        type: boolean
+        default: false
+      RUNS_ON:
+        required: false
+        type: string
+        default: ubuntu-latest
     secrets:
       KEY_PRIVATE:
         required: true
@@ -20,19 +28,22 @@ jobs:
       HOST: ${{ inputs.HOST }}
       FILE: authorized_keys.${{ inputs.HOST }}
 
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.RUNS_ON }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
       - name: generate authorized_keys
         run: |
+          cat authorized_keys >> ${{ env.FILE }}
           echo "${{ vars.KEY_PUB }}" >> ${{ env.FILE }}
+          echo "Accepted keys:"
+          cat "${{ env.FILE }}"
       - name: prepare ssh
         run: |
           mkdir -p ~/.ssh
           echo "IdentityFile ~/.ssh/private_key" > ~/.ssh/config
+          echo "StrictHostKeyChecking no" >> ~/.ssh/config
           cat config >> ~/.ssh/config
-          cp known_hosts ~/.ssh/known_hosts
           echo "${{ secrets.KEY_PRIVATE }}" > ~/.ssh/private_key
           sudo chmod -R 600 ~/.ssh
           sudo chmod 700 ~/.ssh
@@ -44,6 +55,10 @@ jobs:
           ssh ${{ env.HOST }} 'chmod 600 .ssh/authorized_keys'
       - name: Restart SSH
         if: inputs.RESTART_SSH
+        run: |
+          ssh ${{ env.HOST }} 'sudo systemctl restart ssh'
+      - name: Restart SSHD
+        if: inputs.RESTART_SSHD
         run: |
           ssh ${{ env.HOST }} 'sudo systemctl restart sshd'
       - name: Remove .ssh config
