@@ -1,0 +1,98 @@
+# JSON Schema for config.yml (YAML format)
+$schema: http://json-schema.org/draft-07/schema#
+title: SSH Access Configuration Schema
+type: object
+required:
+  - servers
+  - people
+  - root_key
+
+properties:
+  servers:
+    type: object
+    description: Server definitions with connection details
+    patternProperties:
+      "^[a-zA-Z0-9_-]+$":
+        type: object
+        required:
+          - hostname
+          - user
+        properties:
+          hostname:
+            type: string
+            description: Server hostname or IP address
+          user:
+            type: string
+            description: SSH username
+          port:
+            type: integer
+            description: SSH port (optional, defaults to 22)
+            minimum: 1
+            maximum: 65535
+          restart_service:
+            type: string
+            enum: [ssh, sshd]
+            description: Service to restart after updating keys (optional)
+          enabled:
+            type: boolean
+            default: true
+            description: Whether this server is enabled for deployments
+  
+  groups:
+    type: object
+    description: Server groups for access management (optional)
+    patternProperties:
+      "^[a-zA-Z0-9_-]+$":
+        type: array
+        items:
+          type: string
+          description: Server name
+  
+  people:
+    type: object
+    description: People with their SSH keys and access permissions
+    patternProperties:
+      "^.+$":
+        type: object
+        required:
+          - keys
+        properties:
+          keys:
+            oneOf:
+              - type: string
+                description: Single SSH public key
+              - type: array
+                description: Multiple SSH public keys
+                items:
+                  type: string
+          access:
+            oneOf:
+              - type: array
+                description: List of group names or server names
+                items:
+                  type: string
+              - type: object
+                description: Explicit access control
+                properties:
+                  groups:
+                    type: array
+                    items:
+                      type: string
+                  servers:
+                    type: array
+                    items:
+                      type: string
+          enabled:
+            type: boolean
+            default: true
+            description: Whether this person's access is enabled
+  
+  root_key:
+    type: object
+    description: Root deployment key configuration (REQUIRED)
+    required:
+      - public
+    properties:
+      public:
+        type: string
+        description: Path to root public key file (must exist and not be empty)

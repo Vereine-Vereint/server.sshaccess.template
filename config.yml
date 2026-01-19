@@ -1,0 +1,36 @@
+# SSH Access Configuration
+# This file is the single source of truth for server access management
+
+##########
+# SERVER #
+##########
+
+servers:
+  internal_name:
+    hostname: url.or.ip.address
+    user: ssh_username
+    restart_service: sshd  # optional, service to restart on key changes (usually ssh or sshd)
+
+##########
+# GROUPS #
+##########
+
+groups:
+  personal:
+    - internal_name
+
+##########
+# PEOPLE #
+##########
+
+people:
+  some_user:
+    keys:
+      - sss-ids someKeyHere # example for SSS key
+    access:
+      - personal # group or
+      - internal_name # server
+
+# Root deployment key (used by GitHub Actions)
+root_key:
+  public: rootkey.pub

@@ -1,0 +1,40 @@
+name: Update all keys
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  generate-matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      servers: ${{ steps.get-servers.outputs.servers }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install dependencies
+        run: pip install pyyaml
+
+      - name: Get servers from config.yml
+        id: get-servers
+        run: python3 generate.py
+
+  update-keys:
+    needs: generate-matrix
+    strategy:
+      matrix:
+        server: ${{ fromJson(needs.generate-matrix.outputs.servers) }}
+      fail-fast: false
+    uses: ./.github/workflows/update-keys.yml
+    with:
+      HOST: ${{ matrix.server.name }}
+      RESTART_SERVICE: ${{ matrix.server.restart_service }}
+    secrets:
+      KEY_PRIVATE: ${{ secrets.KEY_PRIVATE }}

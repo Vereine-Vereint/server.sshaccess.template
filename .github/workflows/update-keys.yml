@@ -6,14 +6,10 @@ on:
       HOST:
         required: true
         type: string
-      RESTART_SSH:
+      RESTART_SERVICE:
         required: false
-        type: boolean
-        default: false
-      RESTART_SSHD:
-        required: false
-        type: boolean
-        default: false
+        type: string
+        default: ""
       RUNS_ON:
         required: false
         type: string
@@ -26,41 +22,50 @@ jobs:
   update-keys:
     env:
       HOST: ${{ inputs.HOST }}
-      FILE: authorized_keys.${{ inputs.HOST }}
+      FILE: generated/authorized_keys.${{ inputs.HOST }}
 
     runs-on: ${{ inputs.RUNS_ON }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: generate authorized_keys
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install dependencies
         run: |
-          cat authorized_keys >> ${{ env.FILE }}
-          echo "${{ vars.KEY_PUB }}" >> ${{ env.FILE }}
-          echo "Accepted keys:"
-          cat "${{ env.FILE }}"
-      - name: prepare ssh
+          pip install pyyaml
+
+      - name: Generate authorized_keys from config.yml
+        run: |
+          python3 generate.py
+          echo "Generated files for ${{ env.HOST }}"
+
+      - name: Prepare SSH
         run: |
           mkdir -p ~/.ssh
           echo "IdentityFile ~/.ssh/private_key" > ~/.ssh/config
           echo "StrictHostKeyChecking no" >> ~/.ssh/config
-          cat config >> ~/.ssh/config
+          cat generated/config >> ~/.ssh/config
           echo "${{ secrets.KEY_PRIVATE }}" > ~/.ssh/private_key
           sudo chmod -R 600 ~/.ssh
           sudo chmod 700 ~/.ssh
+
       - name: Copy authorized_keys to server
         run: |
-          scp  ${{ env.FILE }} ${{ env.HOST }}:.ssh/authorized_keys
+          scp ${{ env.FILE }} ${{ env.HOST }}:.ssh/authorized_keys
+
       - name: Adjust Rights
         run: |
           ssh ${{ env.HOST }} 'chmod 600 .ssh/authorized_keys'
-      - name: Restart SSH
-        if: inputs.RESTART_SSH
+
+      - name: Restart SSH Service
+        if: inputs.RESTART_SERVICE != ''
         run: |
-          ssh ${{ env.HOST }} 'sudo systemctl restart ssh'
-      - name: Restart SSHD
-        if: inputs.RESTART_SSHD
-        run: |
-          ssh ${{ env.HOST }} 'sudo systemctl restart sshd'
+          ssh ${{ env.HOST }} 'sudo systemctl restart ${{ inputs.RESTART_SERVICE }}'
+
       - name: Remove .ssh config
         if: always()
         run: rm -rf ~/.ssh || sudo rm -rf ~/.ssh
